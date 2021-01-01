@@ -34,6 +34,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -545,7 +546,22 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
           break;
       }
       THREAD.write(PrinterCommands.ESC_ALIGN_CENTER);
-      String line = String.format("%-15s %15s %n", msg1, msg2);
+      // 32 characters per line (one is space separator)
+      // left side should have no more than 16 chars
+      // right side should have no more than 15 chars
+      // left side's max length is auto adjusted based on right side
+      int rLength = msg2.length();
+      if (rLength > 15) {
+        rLength = 15;
+        msg2 = msg2.substring(0, 12) + "...";
+      }
+      int lLength = 32 - rLength - 1;
+      if (msg1.length() > lLength) {
+        msg1 = msg1.substring(0, lLength - 3) + "...";
+      }
+      String fmt = String.format(Locale.getDefault(), "%%-%ds %%%ds%n", lLength, rLength);
+      Log.d(TAG, "printLeftRight: fmt = " + fmt + ", rLength = " + rLength + ", lLength = " + lLength);
+      String line = String.format(fmt, msg1, msg2);
 
       if(charset != null) {
         THREAD.write(line.getBytes(charset));

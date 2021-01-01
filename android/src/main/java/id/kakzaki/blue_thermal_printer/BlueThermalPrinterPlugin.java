@@ -10,15 +10,21 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.util.Log;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.common.BitMatrix;
+import com.journeyapps.barcodescanner.BarcodeEncoder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,20 +38,14 @@ import java.util.Map;
 import java.util.UUID;
 
 import io.flutter.plugin.common.EventChannel;
-import io.flutter.plugin.common.EventChannel.StreamHandler;
 import io.flutter.plugin.common.EventChannel.EventSink;
+import io.flutter.plugin.common.EventChannel.StreamHandler;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener;
-
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
-import com.journeyapps.barcodescanner.BarcodeEncoder;
 
 public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermissionsResultListener {
 
@@ -67,7 +67,7 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
     registrar.addRequestPermissionsResultListener(instance);
   }
 
-  BlueThermalPrinterPlugin(Registrar registrar) {
+  private BlueThermalPrinterPlugin(Registrar registrar) {
     this.registrar = registrar;
     MethodChannel channel = new MethodChannel(registrar.messenger(), NAMESPACE + "/methods");
     EventChannel stateChannel = new EventChannel(registrar.messenger(), NAMESPACE + "/state");
@@ -79,7 +79,55 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
 			this.mBluetoothAdapter = mBluetoothManager.getAdapter();
 		}
     channel.setMethodCallHandler(this);
+    StreamHandler stateStreamHandler = new StreamHandler() {
+
+      private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+          final String action = intent.getAction();
+
+          Log.d(TAG, action);
+
+          if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+            THREAD = null;
+            statusSink.success(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1));
+          } else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+            statusSink.success(1);
+          } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
+            THREAD = null;
+            statusSink.success(0);
+          }
+        }
+      };
+
+      @Override
+      public void onListen(Object o, EventSink eventSink) {
+        statusSink = eventSink;
+        registrar.activity().registerReceiver(mReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+
+        registrar.activeContext().registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED));
+
+        registrar.activeContext().registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED));
+      }
+
+      @Override
+      public void onCancel(Object o) {
+        statusSink = null;
+        registrar.activity().unregisterReceiver(mReceiver);
+      }
+    };
     stateChannel.setStreamHandler(stateStreamHandler);
+    StreamHandler readResultsHandler = new StreamHandler() {
+      @Override
+      public void onListen(Object o, EventSink eventSink) {
+        readSink = eventSink;
+      }
+
+      @Override
+      public void onCancel(Object o) {
+        readSink = null;
+      }
+    };
     readChannel.setStreamHandler(readResultsHandler);
   }
 
@@ -95,37 +143,22 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
 
     @Override
     public void success(final Object result) {
-      handler.post(new Runnable() {
-        @Override
-        public void run() {
-          methodResult.success(result);
-        }
-      });
+      handler.post(() -> methodResult.success(result));
     }
 
     @Override
     public void error(final String errorCode, final String errorMessage, final Object errorDetails) {
-      handler.post(new Runnable() {
-        @Override
-        public void run() {
-          methodResult.error(errorCode, errorMessage, errorDetails);
-        }
-      });
+      handler.post(() -> methodResult.error(errorCode, errorMessage, errorDetails));
     }
 
     @Override
     public void notImplemented() {
-      handler.post(new Runnable() {
-        @Override
-        public void run() {
-          methodResult.notImplemented();
-        }
-      });
+      handler.post(() -> methodResult.notImplemented());
     }
   }
 
   @Override
-  public void onMethodCall(MethodCall call, Result rawResult) {
+  public void onMethodCall(@NonNull MethodCall call, @NonNull Result rawResult) {
     Result result = new MethodResultWrapper(rawResult);
 
     if (mBluetoothAdapter == null && !"isAvailable".equals(call.method)) {
@@ -143,7 +176,6 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
 
       case "isOn":
         try {
-          assert mBluetoothAdapter != null;
           result.success(mBluetoothAdapter.isEnabled());
         } catch (Exception ex) {
           result.error("Error", ex.getMessage(), exceptionToString(ex));
@@ -671,7 +703,7 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
       }
     }
 
-    public void write(byte[] bytes) {
+    void write(byte[] bytes) {
       try {
         outputStream.write(bytes);
       } catch (IOException e) {
@@ -679,7 +711,7 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
       }
     }
 
-    public void cancel() {
+    void cancel() {
       try {
         outputStream.flush();
         outputStream.close();
@@ -693,53 +725,4 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
     }
   }
 
-  private final StreamHandler stateStreamHandler = new StreamHandler() {
-
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
-      @Override
-      public void onReceive(Context context, Intent intent) {
-        final String action = intent.getAction();
-
-        Log.d(TAG, action);
-
-        if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
-          THREAD = null;
-          statusSink.success(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1));
-        } else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
-          statusSink.success(1);
-        } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
-          THREAD = null;
-          statusSink.success(0);
-        }
-      }
-    };
-
-    @Override
-    public void onListen(Object o, EventSink eventSink) {
-      statusSink = eventSink;
-      registrar.activity().registerReceiver(mReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
-
-      registrar.activeContext().registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED));
-
-      registrar.activeContext().registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED));
-    }
-
-    @Override
-    public void onCancel(Object o) {
-      statusSink = null;
-      registrar.activity().unregisterReceiver(mReceiver);
-    }
-  };
-
-  private final StreamHandler readResultsHandler = new StreamHandler() {
-    @Override
-    public void onListen(Object o, EventSink eventSink) {
-      readSink = eventSink;
-    }
-
-    @Override
-    public void onCancel(Object o) {
-      readSink = null;
-    }
-  };
 }

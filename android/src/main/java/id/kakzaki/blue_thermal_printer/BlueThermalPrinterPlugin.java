@@ -518,35 +518,36 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
 
   private void printLeftRight(Result result, String msg1, String msg2, int size ,String charset) {
     byte[] cc = new byte[] { 0x1B, 0x21, 0x03 }; // 0- normal size text
-    // byte[] cc1 = new byte[]{0x1B,0x21,0x00}; // 0- normal size text
     byte[] bb = new byte[] { 0x1B, 0x21, 0x08 }; // 1- only bold text
-    byte[] bb2 = new byte[] { 0x1B, 0x21, 0x20 }; // 2- bold with medium text
-    byte[] bb3 = new byte[] { 0x1B, 0x21, 0x10 }; // 3- bold with large text
-    byte[] bb4 = new byte[] { 0x1B, 0x21, 0x30 }; // 4- strong text
+    byte[] bb2 = new byte[] { 0x1B, 0x21, 0x10 }; // 2- bold with medium text
+    byte[] bb3 = new byte[] { 0x1B, 0x21, 0x20 }; // 3- bold with large text
     if (THREAD == null) {
       result.error("write_error", "not connected", null);
       return;
     }
+    int charPerLine = 32;
     try {
       switch (size) {
         case 0:
+          charPerLine = 32;
           THREAD.write(cc);
           break;
         case 1:
+          charPerLine = 32;
           THREAD.write(bb);
           break;
         case 2:
+          charPerLine = 32;
           THREAD.write(bb2);
           break;
         case 3:
+          charPerLine = 16;
           THREAD.write(bb3);
-          break;
-        case 4:
-          THREAD.write(bb4);
           break;
       }
       THREAD.write(PrinterCommands.ESC_ALIGN_CENTER);
-      // 32 characters per line (one is space separator)
+
+      // max 32 characters per line (one is space separator)
       // left side should have no more than 16 chars
       // right side should have no more than 15 chars
       // left side's max length is auto adjusted based on right side
@@ -555,12 +556,12 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
         rLength = 15;
         msg2 = msg2.substring(0, 12) + "...";
       }
-      int lLength = 32 - rLength - 1;
+      int lLength = charPerLine - rLength - 1;
       if (msg1.length() > lLength) {
         msg1 = msg1.substring(0, lLength - 3) + "...";
       }
       String fmt = String.format(Locale.getDefault(), "%%-%ds %%%ds%n", lLength, rLength);
-      Log.d(TAG, "printLeftRight: fmt = " + fmt + ", rLength = " + rLength + ", lLength = " + lLength);
+      // Log.d(TAG, "printLeftRight: fmt = " + fmt + ", rLength = " + rLength + ", lLength = " + lLength);
       String line = String.format(fmt, msg1, msg2);
 
       if(charset != null) {

@@ -1,4 +1,4 @@
-_this fork edit the `printLeftRight` method to work properly on 80mm paper - with a hardcoded assumption of 32 chars per line_   
+_this fork edit the `printLeftRight` method to work properly on 58mm paper - with a hardcoded assumption of 32 chars per line_   
 ![img](https://i.imgur.com/LQRwNN0.jpg)
 
 # blue_thermal_printer

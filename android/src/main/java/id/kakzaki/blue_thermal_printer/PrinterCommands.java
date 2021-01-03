@@ -54,4 +54,7 @@ class PrinterCommands {
 //    public static final byte[] ESC_ENTER = new byte[] { 0x1B, 0x4A, 0x40 };
 //    public static final byte[] PRINT_TEST = new byte[] { 0x1D, 0x28, 0x41 };
 
+    // SUMMI printer specific codes
+    // https://file.cdn.sunmi.com/SUNMIDOCS/Sunmi-Printing-Service-ENCN.pdf
+    static final byte[] ENC_UTF8 = new byte[] {0x1C, 0x43, (byte) 0xFF};
 }

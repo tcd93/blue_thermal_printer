@@ -469,7 +469,7 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
       result.error("write_error", "not connected", null);
       return;
     }
-
+    THREAD.write(PrinterCommands.ENC_UTF8); // for SUNMI devices
     try {
       switch (size) {
         case 0:
@@ -525,6 +525,7 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
       result.error("write_error", "not connected", null);
       return;
     }
+    THREAD.write(PrinterCommands.ENC_UTF8); // for SUNMI devices
     int charPerLine = 32;
     try {
       switch (size) {

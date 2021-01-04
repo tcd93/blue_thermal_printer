@@ -546,9 +546,17 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
           THREAD.write(bb3);
           break;
       }
+      // if a character needs more than 2 bytes to represent in UTF8, then SUNMI would set charPerLine to 31? (bug?)
+      // so we need to trim accordingly, to prevent "overflowing" one line feed
+      for (char i : msg1.toCharArray()) {
+        if ((int) i > 255) {
+          charPerLine--;
+          break;
+        }
+      }
+
       THREAD.write(PrinterCommands.ESC_ALIGN_CENTER);
 
-      // max 32 characters per line (one is space separator)
       // left side should have no more than 16 chars
       // right side should have no more than 15 chars
       // left side's max length is auto adjusted based on right side
@@ -562,10 +570,9 @@ public class BlueThermalPrinterPlugin implements MethodCallHandler, RequestPermi
         msg1 = msg1.substring(0, lLength - 3) + "...";
       }
       String fmt = String.format(Locale.getDefault(), "%%-%ds %%%ds%n", lLength, rLength);
-      // Log.d(TAG, "printLeftRight: fmt = " + fmt + ", rLength = " + rLength + ", lLength = " + lLength);
       String line = String.format(fmt, msg1, msg2);
 
-      if(charset != null) {
+      if (charset != null) {
         THREAD.write(line.getBytes(charset));
       } else {
         THREAD.write(line.getBytes());

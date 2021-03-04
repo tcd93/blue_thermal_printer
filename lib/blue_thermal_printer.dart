@@ -17,23 +17,20 @@ class BlueThermalPrinter {
 
   static const String namespace = 'blue_thermal_printer';
 
-  static const MethodChannel _channel =
-      const MethodChannel('$namespace/methods');
+  static const MethodChannel _channel = const MethodChannel('$namespace/methods');
 
-  static const EventChannel _readChannel =
-      const EventChannel('$namespace/read');
+  static const EventChannel _readChannel = const EventChannel('$namespace/read');
 
-  static const EventChannel _stateChannel =
-      const EventChannel('$namespace/state');
+  static const EventChannel _stateChannel = const EventChannel('$namespace/state');
 
-  final StreamController<MethodCall> _methodStreamController =
-      new StreamController.broadcast();
+  final StreamController<MethodCall> _methodStreamController = new StreamController.broadcast();
 
   //Stream<MethodCall> get _methodStream => _methodStreamController.stream;
 
   BlueThermalPrinter._() {
     _channel.setMethodCallHandler((MethodCall call) {
       _methodStreamController.add(call);
+      return Future.value();
     });
   }
 
@@ -41,22 +38,18 @@ class BlueThermalPrinter {
 
   static BlueThermalPrinter get instance => _instance;
 
-  Stream<int> onStateChanged() =>
-      _stateChannel.receiveBroadcastStream().map((buffer) => buffer);
+  Stream<int> onStateChanged() => _stateChannel.receiveBroadcastStream().map((buffer) => buffer);
 
   Stream<String> onRead() =>
       _readChannel.receiveBroadcastStream().map((buffer) => buffer.toString());
 
-  Future<bool> get isAvailable async =>
-      await _channel.invokeMethod('isAvailable');
+  Future<bool> get isAvailable async => await _channel.invokeMethod('isAvailable');
 
   Future<bool> get isOn async => await _channel.invokeMethod('isOn');
 
-  Future<bool> get isConnected async =>
-      await _channel.invokeMethod('isConnected');
+  Future<bool> get isConnected async => await _channel.invokeMethod('isConnected');
 
-  Future<bool> get openSettings async =>
-      await _channel.invokeMethod('openSettings');
+  Future<bool> get openSettings async => await _channel.invokeMethod('openSettings');
 
   Future<List<BluetoothDevice>> getBondedDevices() async {
     final List list = await _channel.invokeMethod('getBondedDevices');
@@ -68,20 +61,14 @@ class BlueThermalPrinter {
 
   Future<dynamic> disconnect() => _channel.invokeMethod('disconnect');
 
-  Future<dynamic> write(String message) =>
-      _channel.invokeMethod('write', {'message': message});
+  Future<dynamic> write(String message) => _channel.invokeMethod('write', {'message': message});
 
   Future<dynamic> writeBytes(Uint8List message) =>
       _channel.invokeMethod('writeBytes', {'message': message});
 
-  Future<dynamic> printCustom(String message, int size, int align,
-          {String charset}) =>
-      _channel.invokeMethod('printCustom', {
-        'message': message,
-        'size': size,
-        'align': align,
-        'charset': charset
-      });
+  Future<dynamic> printCustom(String message, int size, int align, {String? charset}) =>
+      _channel.invokeMethod(
+          'printCustom', {'message': message, 'size': size, 'align': align, 'charset': charset});
 
   Future<dynamic> printNewLine() => _channel.invokeMethod('printNewLine');
 
@@ -93,23 +80,13 @@ class BlueThermalPrinter {
   Future<dynamic> printImageBytes(Uint8List bytes) =>
       _channel.invokeMethod('printImageBytes', {'bytes': bytes});
 
-  Future<dynamic> printQRcode(
-          String textToQR, int width, int height, int align) =>
-      _channel.invokeMethod('printQRcode', {
-        'textToQR': textToQR,
-        'width': width,
-        'height': height,
-        'align': align
-      });
+  Future<dynamic> printQRcode(String textToQR, int width, int height, int align) =>
+      _channel.invokeMethod(
+          'printQRcode', {'textToQR': textToQR, 'width': width, 'height': height, 'align': align});
 
-  Future<dynamic> printLeftRight(String string1, String string2, int size,
-          {String charset}) =>
-      _channel.invokeMethod('printLeftRight', {
-        'string1': string1,
-        'string2': string2,
-        'size': size,
-        'charset': charset
-      });
+  Future<dynamic> printLeftRight(String string1, String string2, int size, {String? charset}) =>
+      _channel.invokeMethod('printLeftRight',
+          {'string1': string1, 'string2': string2, 'size': size, 'charset': charset});
 }
 
 class BluetoothDevice {
